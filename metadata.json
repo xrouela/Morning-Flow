@@ -1,0 +1,6 @@
+{
+  "name": "Morning Flow",
+  "description": "5-minute guided morning routine to support lymphatic circulation with gentle movement, role-based auth, and personalized onboarding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

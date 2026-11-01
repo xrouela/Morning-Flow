@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Role verification via Firebase Custom Claims
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isCoachOrAdmin() {
+      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'coach');
+    }
+
+    // Users Collection: Users read & write only their own profile document
+    // Role fields cannot be self-elevated by clients; only Cloud Functions can modify 'role'
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) 
+        && request.resource.data.role == 'user'
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isOwner(userId) 
+        && request.resource.data.role == resource.data.role; // Prevent client role escalation
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Exercises Collection: Authenticated users can read routines/exercises.
+    // ONLY admins can create, update, or delete exercises.
+    match /exercises/{exerciseId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Routines Collection: Authenticated users can read routines.
+    // ONLY admins can create, update, or delete routines.
+    match /routines/{routineId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Completions & Streaks Collection: Users write & read only their own history
+    match /completions/{completionId} {
+      allow read, write: if isAuthenticated() && (
+        resource == null || resource.data.userId == request.auth.uid
+      ) && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}
