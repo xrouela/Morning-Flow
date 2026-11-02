@@ -33,7 +33,7 @@ export const AppWalkthroughModal: React.FC<AppWalkthroughModalProps> = ({ onDism
     {
       badge: 'Progressive Daily Plan',
       title: 'Build Up at Your Own Pace',
-      description: 'The program progresses through three phases. All days are available to choose, and your next incomplete day is highlighted.',
+      description: 'The program progresses through three phases. Complete each day to unlock the next; your next available day is highlighted.',
       icon: <Activity className="w-8 h-8 text-teal-600 dark:text-teal-400" />,
       features: [
         'Days 1–10: Beginner',
@@ -60,7 +60,7 @@ export const AppWalkthroughModal: React.FC<AppWalkthroughModalProps> = ({ onDism
       description: 'Save a day after you finish its routine, then review completed days and your current streak in History.',
       icon: <Flame className="w-8 h-8 text-orange-500 fill-orange-500" />,
       features: [
-        'See your next incomplete day',
+        'Unlock the next day after completing your current day',
         'Review completed days and weekly progress',
         'Progress is saved on this device',
       ],

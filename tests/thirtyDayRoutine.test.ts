@@ -11,6 +11,7 @@ import {
   getNextRoutineDay,
   getRoutineProgress,
   getRoutineStreak,
+  isRoutineDayUnlocked,
   recordRoutineDayCompletion,
   RoutineProgress,
 } from '../src/services/routineProgressService';
@@ -157,9 +158,80 @@ test('program progression skips completed days and calculates current local-date
   };
 
   assert.equal(getNextRoutineDay(progress), 4);
+  assert.equal(isRoutineDayUnlocked(progress, 4), true);
+  assert.equal(isRoutineDayUnlocked(progress, 5), false);
   assert.equal(getRoutineStreak(progress, new Date(2026, 5, 15, 12)), 3);
   assert.equal(getRoutineStreak({ version: 1, completions: [] }, new Date(2026, 5, 15, 12)), 0);
   assert.equal(getNextRoutineDay(allDaysComplete), null);
+});
+
+test('each user must complete the current day before the next day unlocks', () => {
+  const values = new Map<string, string>();
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const userAStart = getRoutineProgress('user-a');
+    const userBStart = getRoutineProgress('user-b');
+    assert.equal(isRoutineDayUnlocked(userAStart, 1), true);
+    assert.equal(isRoutineDayUnlocked(userAStart, 2), false);
+    assert.throws(() => recordRoutineDayCompletion('user-a', 2, false), /Complete Day 1/);
+    assert.throws(() => recordRoutineDayCompletion('user-b', 2, false), /Complete Day 1/);
+
+    recordRoutineDayCompletion('user-a', 1, false);
+    assert.equal(isRoutineDayUnlocked(getRoutineProgress('user-a'), 2), true);
+    assert.equal(isRoutineDayUnlocked(getRoutineProgress('user-a'), 3), false);
+    assert.equal(isRoutineDayUnlocked(getRoutineProgress('user-b'), 2), false);
+    assert.throws(() => recordRoutineDayCompletion('user-b', 2, false), /Complete Day 1/);
+    const userAAfterDayTwo = recordRoutineDayCompletion('user-a', 2, false);
+    assert.equal(userAAfterDayTwo.completions.length, 2);
+    assert.equal(isRoutineDayUnlocked(userAAfterDayTwo, 3), true);
+  } finally {
+    if (previousWindow) {
+      Object.defineProperty(globalThis, 'window', previousWindow);
+    } else {
+      Reflect.deleteProperty(globalThis, 'window');
+    }
+  }
+});
+
+test('legacy out-of-order saved days do not unlock future exercises', () => {
+  const values = new Map<string, string>([[
+    'morning_flow_30_day_progress_legacy-user',
+    JSON.stringify({
+      version: 1,
+      completions: [
+        { day: 1, completedAt: '2026-06-13T07:00:00.000Z', date: '2026-06-13', durationSeconds: 600, tiredDay: false },
+        { day: 3, completedAt: '2026-06-15T07:00:00.000Z', date: '2026-06-15', durationSeconds: 600, tiredDay: false },
+      ],
+    }),
+  ]]);
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: { getItem: (key: string) => values.get(key) ?? null } },
+  });
+
+  try {
+    const progress = getRoutineProgress('legacy-user');
+    assert.deepEqual(progress.completions.map((completion) => completion.day), [1]);
+    assert.equal(getNextRoutineDay(progress), 2);
+    assert.equal(isRoutineDayUnlocked(progress, 3), false);
+  } finally {
+    if (previousWindow) {
+      Object.defineProperty(globalThis, 'window', previousWindow);
+    } else {
+      Reflect.deleteProperty(globalThis, 'window');
+    }
+  }
 });
 
 test('malformed stored program progress raises a visible validation error', () => {

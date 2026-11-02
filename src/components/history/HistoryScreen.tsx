@@ -8,7 +8,7 @@ import {
   RoutineProgress,
 } from '../../services/routineProgressService';
 import { THIRTY_DAY_ROUTINE_PLANS } from '../../services/thirtyDayRoutine';
-import { Award, CalendarDays, CheckCircle2, Flame, TrendingUp } from 'lucide-react';
+import { Award, CalendarDays, CheckCircle2, Flame, LockKeyhole, TrendingUp } from 'lucide-react';
 
 export const HistoryScreen: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -45,6 +45,7 @@ export const HistoryScreen: React.FC = () => {
   );
   const streak = progress ? getRoutineStreak(progress) : 0;
   const nextDay = progress ? getNextRoutineDay(progress) : 1;
+  const unlockedThrough = nextDay ?? THIRTY_DAY_ROUTINE_PLANS.length;
   const today = new Date();
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const daysSinceMonday = (monday.getDay() + 6) % 7;
@@ -144,14 +145,22 @@ export const HistoryScreen: React.FC = () => {
           {THIRTY_DAY_ROUTINE_PLANS.map((plan) => (
             <div
               key={plan.day}
-              aria-label={`Day ${plan.day}, ${completedDays.has(plan.day) ? 'completed' : plan.level}`}
+              aria-label={`Day ${plan.day}, ${completedDays.has(plan.day) ? 'completed' : plan.day <= unlockedThrough ? plan.level : 'locked'}`}
               className={`h-9 rounded-xl flex items-center justify-center text-[11px] font-semibold border ${
                 completedDays.has(plan.day)
                   ? 'bg-emerald-600 text-white border-emerald-600'
-                  : 'bg-stone-50 text-stone-500 border-stone-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+                  : plan.day === nextDay
+                    ? 'bg-white text-emerald-700 border-emerald-500 dark:bg-slate-900 dark:text-emerald-300 dark:border-emerald-700'
+                    : plan.day > unlockedThrough
+                      ? 'bg-stone-100 text-stone-400 border-stone-200 dark:bg-slate-950 dark:text-slate-600 dark:border-slate-800'
+                      : 'bg-stone-50 text-stone-500 border-stone-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
               }`}
             >
-              {completedDays.has(plan.day) ? <CheckCircle2 className="w-4 h-4" /> : plan.day}
+              {completedDays.has(plan.day)
+                ? <CheckCircle2 className="w-4 h-4" />
+                : plan.day > unlockedThrough
+                  ? <LockKeyhole className="w-3 h-3" />
+                  : plan.day}
             </div>
           ))}
         </div>

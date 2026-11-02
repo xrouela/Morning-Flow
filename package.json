@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "android:sync": "npm run build && cap sync android",
     "android:build": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "android:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/android-install.ps1",
+    "android:verify": "npm run lint && npx tsx --test tests/authLogic.test.ts tests/thirtyDayRoutine.test.ts && npm run android:build && npm run android:install",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

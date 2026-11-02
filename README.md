@@ -16,6 +16,7 @@ Morning Flow is a wellness-oriented application packaged for Android with Capaci
 
 ## 🏃 30-Day Program
 - All 30 day-by-day exercise sequences from the routine plan are available in order; each full flow contains 10 one-minute moves.
+- Days unlock sequentially for each signed-in user: Day 1 is available first, and completing a day unlocks the next. Future days cannot be selected or recorded early.
 - The guided timer advances through the selected day's sequence and stops at the end instead of looping.
 - Completion is saved per signed-in demo user on the device. Completed days, next recommended day, completion history, and streak are shown in the app.
 - The tired-day option runs that day's first three exercises and final rest/stretch (four minutes).
@@ -69,47 +70,28 @@ To run and test the complete Firebase backend locally:
 ---
 
 ## 🏃 Running the App
+Android is the primary target for development and validation. The React/Vite web assets are retained as Capacitor's build input; browser testing is not the app validation workflow.
+
 1. Install project dependencies:
    ```bash
    npm install
    ```
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## 🤖 Running in an Android Emulator
-This web app can be packaged as a native Android app using Capacitor. Install JDK 21 and the Android SDK (including Android API 36), and install Android Studio so you can create and start an emulator:
-
-1. In Android Studio, open **Tools → Device Manager**.
-2. Create a virtual device if needed, then start it. Wait until Android finishes booting.
-3. From the project root, confirm that Android Debug Bridge can see the emulator:
+2. Start an Android emulator in Android Studio (**Tools → Device Manager**) and verify it is connected:
    ```powershell
-   adb devices
+   & "$env:ANDROID_HOME\platform-tools\adb.exe" devices
    ```
-   The emulator should appear in the device list. If `adb` is not recognized, add the Android SDK `platform-tools` directory to your Windows `PATH`.
-
-Build the debug APK from the project root:
+   Install JDK 21 and Android SDK API 36 if needed. Set `ANDROID_HOME` to your Android SDK directory if it is not already configured.
+3. Run the standard verification workflow from the project root:
 
 ```bash
-npm run android:build
+npm run android:verify
 ```
 
-The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. Install it on the running emulator:
+This runs the TypeScript check and unit tests, builds the debug APK, installs it on the connected emulator, and launches Morning Flow. Manually exercise the changed feature in the emulator before considering the change verified. The command requires an available emulator and `ANDROID_HOME` set to the Android SDK directory.
 
-```powershell
-adb install -r .\android\app\build\outputs\apk\debug\app-debug.apk
-```
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. To rebuild without installing, run `npm run android:build`. To reinstall and launch an already-built APK, run `npm run android:install`.
 
-Open **Morning Flow** from the emulator's app launcher. After rebuilding the app, run the install command again to update the emulator installation.
-
----
-
-## 📋 Running Unit Tests
-Run the unit tests for Zod schemas, secure storage, and the 30-day program and progress rules:
-```bash
-npx --yes tsx --test tests/authLogic.test.ts tests/thirtyDayRoutine.test.ts
-```
+`npm run dev` remains available for implementation work, but browser previews are not a substitute for validating changes in the Android APK.
 
 ---
 

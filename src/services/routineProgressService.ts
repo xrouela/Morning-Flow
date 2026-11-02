@@ -42,7 +42,7 @@ function parseProgress(raw: string): RoutineProgress {
   }
 
   const seenDays = new Set<number>();
-  const completions = candidate.completions.map((item): RoutineDayCompletion => {
+  const parsedCompletions = candidate.completions.map((item): RoutineDayCompletion => {
     if (
       !item ||
       typeof item !== 'object' ||
@@ -71,7 +71,14 @@ function parseProgress(raw: string): RoutineProgress {
     };
   });
 
-  return { version: 1, completions };
+  const sortedCompletions = parsedCompletions.sort((a, b) => a.day - b.day);
+  const sequentialCompletions: RoutineDayCompletion[] = [];
+  for (const completion of sortedCompletions) {
+    if (completion.day !== sequentialCompletions.length + 1) break;
+    sequentialCompletions.push(completion);
+  }
+
+  return { version: 1, completions: sequentialCompletions };
 }
 
 export function getRoutineProgress(uid: string): RoutineProgress {
@@ -100,6 +107,15 @@ export function recordRoutineDayCompletion(
     return progress;
   }
 
+  const nextDay = getNextRoutineDay(progress);
+  if (day !== nextDay) {
+    throw new Error(
+      nextDay
+        ? `Complete Day ${nextDay} before recording Day ${day}.`
+        : 'All 30 routine days are already complete.',
+    );
+  }
+
   const completion: RoutineDayCompletion = {
     day,
     completedAt: completedAt.toISOString(),
@@ -121,6 +137,12 @@ export function recordRoutineDayCompletion(
 export function getNextRoutineDay(progress: RoutineProgress): number | null {
   const completedDays = new Set(progress.completions.map((completion) => completion.day));
   return THIRTY_DAY_ROUTINE_PLANS.find((plan) => !completedDays.has(plan.day))?.day ?? null;
+}
+
+export function isRoutineDayUnlocked(progress: RoutineProgress, day: number): boolean {
+  if (!THIRTY_DAY_ROUTINE_PLANS.some((plan) => plan.day === day)) return false;
+  const nextDay = getNextRoutineDay(progress);
+  return nextDay === null || day <= nextDay;
 }
 
 export function getRoutineStreak(progress: RoutineProgress, today = new Date()): number {
