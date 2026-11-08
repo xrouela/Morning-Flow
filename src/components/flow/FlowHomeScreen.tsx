@@ -27,6 +27,7 @@ import {
   Flame,
   Info,
   LockKeyhole,
+  LockKeyholeOpen,
   Pause,
   Play,
   RotateCcw,
@@ -49,6 +50,8 @@ export const FlowHomeScreen: React.FC = () => {
   const [repCounts, setRepCounts] = useState<Record<number, number>>({});
   const [routineFinished, setRoutineFinished] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [lockedDayMessage, setLockedDayMessage] = useState<string | null>(null);
+  const [justUnlockedDay, setJustUnlockedDay] = useState<number | null>(null);
   const [previewExerciseModal, setPreviewExerciseModal] = useState<RoutineExercise | null>(null);
 
   const plan = THIRTY_DAY_ROUTINE_PLANS[selectedDay - 1];
@@ -65,10 +68,11 @@ export const FlowHomeScreen: React.FC = () => {
   const nextDay = progress ? getNextRoutineDay(progress) : null;
   const completedCount = progress?.completions.length ?? 0;
   const isSelectedDayComplete = completedDays.has(selectedDay);
+  const isSelectedDayLocked = !progress || !isRoutineDayUnlocked(progress, selectedDay);
   const canStartSelectedDay =
     Boolean(user?.uid) &&
     !isLoadingProgress &&
-    Boolean(progress && isRoutineDayUnlocked(progress, selectedDay));
+    !isSelectedDayLocked;
   const streakCount = progress ? getRoutineStreak(progress) : 0;
 
   useEffect(() => {
@@ -139,15 +143,25 @@ export const FlowHomeScreen: React.FC = () => {
   }, [activeStepIndex, isPlaying, routine, secondsRemaining]);
 
   const selectDay = (day: number) => {
-    if (!progress || !isRoutineDayUnlocked(progress, day)) return;
     setSelectedDay(day);
-    setTiredDay(false);
+    setJustUnlockedDay(null);
+    setLockedDayMessage(null);
+    if (progress && isRoutineDayUnlocked(progress, day)) {
+      setTiredDay(false);
+    } else {
+      setLockedDayMessage(
+        day > 1
+          ? `Finish Day ${day - 1} to unlock Day ${day}.`
+          : `Finish Day ${day} to unlock it.`,
+      );
+    }
     setPreviewExerciseModal(null);
   };
 
   const toggleTiredDay = () => {
     setTiredDay((current) => !current);
     setPreviewExerciseModal(null);
+    setLockedDayMessage(null);
   };
 
   const startOrResume = () => {
@@ -189,12 +203,20 @@ export const FlowHomeScreen: React.FC = () => {
     try {
       const alreadyCompleted = completedDays.has(selectedDay);
       const updatedProgress = recordRoutineDayCompletion(user.uid, selectedDay, tiredDay);
+      const unlockedDay = getNextRoutineDay(updatedProgress);
       setProgress(updatedProgress);
       setProgressError(null);
+      setJustUnlockedDay(
+        !alreadyCompleted && nextDay === selectedDay && unlockedDay !== null
+          ? unlockedDay
+          : null,
+      );
       setCompletionMessage(
         alreadyCompleted
           ? `Day ${selectedDay} was already recorded. Your progress has not been counted twice.`
-          : `Day ${selectedDay} complete! Your progress has been saved.`,
+          : unlockedDay
+            ? `Day ${selectedDay} done. Day ${unlockedDay} unlocked.`
+            : `Day ${selectedDay} done. Your 30-day journey is complete.`,
       );
     } catch (error) {
       setProgressError(
@@ -219,7 +241,7 @@ export const FlowHomeScreen: React.FC = () => {
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300">
           <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
-          <span className="text-xs font-bold">{streakCount} Day Streak</span>
+          <span className="text-xs font-bold">{streakCount}-day streak</span>
         </div>
       </div>
 
@@ -230,7 +252,7 @@ export const FlowHomeScreen: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-emerald-600" />
-            {nextDay ? `Next up: Day ${nextDay}` : '30-day journey complete'}
+            {nextDay ? `Day ${nextDay} of 30` : 'Day 30 of 30 · Complete'}
           </span>
           <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
             {completedCount} / 30 days
@@ -249,43 +271,72 @@ export const FlowHomeScreen: React.FC = () => {
             style={{ width: `${(completedCount / THIRTY_DAY_ROUTINE_PLANS.length) * 100}%` }}
           />
         </div>
-        <div className="grid grid-cols-6 gap-1.5" aria-label="Choose a day">
+        <div className="grid grid-cols-5 gap-1.5" aria-label="Choose a day">
           {THIRTY_DAY_ROUTINE_PLANS.map((dayPlan) => {
             const isComplete = completedDays.has(dayPlan.day);
             const isSelected = selectedDay === dayPlan.day;
             const isNext = nextDay === dayPlan.day;
             const isLocked = !progress || !isRoutineDayUnlocked(progress, dayPlan.day);
+            const unlockInstruction = dayPlan.day > 1
+              ? `Finish Day ${dayPlan.day - 1} to unlock.`
+              : 'Finish this day to unlock the next.';
             return (
               <button
                 key={dayPlan.day}
                 type="button"
-                aria-label={`Day ${dayPlan.day}${isComplete ? ', completed' : isNext ? ', next up' : isLocked ? ', locked' : ''}`}
+                aria-label={
+                  isComplete
+                    ? `Day ${dayPlan.day}, completed`
+                    : isNext
+                      ? `Day ${dayPlan.day}, Today`
+                      : isLocked
+                        ? `Day ${dayPlan.day}, locked. ${unlockInstruction}`
+                        : `Day ${dayPlan.day}, unlocked`
+                }
                 aria-pressed={isSelected}
-                disabled={isLoadingProgress || isLocked}
+                aria-disabled={isLocked}
+                disabled={isLoadingProgress}
                 onClick={() => selectDay(dayPlan.day)}
-                className={`min-h-10 rounded-xl text-xs font-semibold transition border ${
-                  isSelected
+                className={`min-h-12 rounded-xl text-[10px] font-semibold transition border ${
+                  isSelected && !isLocked
                     ? 'bg-emerald-700 text-white border-emerald-700'
+                    : isSelected
+                      ? 'bg-stone-200 text-stone-700 border-stone-500 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-500'
                     : isComplete
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                       : isNext
-                        ? 'bg-white text-emerald-700 border-emerald-500 dark:bg-slate-900 dark:text-emerald-300'
-                          : isLocked
-                            ? 'bg-stone-100 text-stone-400 border-stone-200 dark:bg-slate-950 dark:text-slate-600 dark:border-slate-800'
-                            : 'bg-stone-50 text-stone-600 border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700'
+                        ? `bg-emerald-600 text-white border-emerald-600 ${justUnlockedDay === dayPlan.day ? 'motion-safe:animate-pulse' : ''}`
+                        : isLocked
+                          ? 'bg-stone-100 text-stone-600 border-stone-300 dark:bg-slate-950 dark:text-slate-300 dark:border-slate-700'
+                          : 'bg-stone-50 text-stone-600 border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700'
                 }`}
               >
-                {isComplete
-                  ? <CheckCircle2 className="w-4 h-4 mx-auto" />
-                  : isLocked
-                    ? <LockKeyhole className="w-3.5 h-3.5 mx-auto" />
-                    : dayPlan.day}
+                <span className="flex flex-col items-center justify-center leading-tight gap-0.5">
+                  <span className="flex items-center gap-0.5">
+                    {isComplete
+                      ? <CheckCircle2 className="w-3.5 h-3.5" />
+                      : isLocked
+                        ? <LockKeyhole className="w-3 h-3" />
+                        : justUnlockedDay === dayPlan.day
+                          ? <LockKeyholeOpen className="w-3.5 h-3.5 motion-safe:animate-bounce" />
+                          : null}
+                    <span>{dayPlan.day}</span>
+                  </span>
+                  <span className={isComplete ? 'text-[8px]' : undefined}>
+                    {isComplete ? 'Completed' : isNext ? 'Today' : 'Locked'}
+                  </span>
+                </span>
               </button>
             );
           })}
         </div>
+        {lockedDayMessage && (
+          <p role="status" aria-live="polite" className="text-xs text-stone-700 dark:text-slate-200">
+            {lockedDayMessage}
+          </p>
+        )}
         <p className="text-[11px] text-stone-500 dark:text-slate-400">
-          Complete each day to unlock the next. Days 1–10 Beginner · Days 11–20 Intermediate · Days 21–30 Advanced.
+          Complete each day to unlock the next. Completed days can be repeated. Days 1–10 Beginner · Days 11–20 Intermediate · Days 21–30 Advanced.
         </p>
         {isLoadingProgress && (
           <p role="status" className="text-xs text-stone-500">Loading your saved progress…</p>
@@ -302,18 +353,26 @@ export const FlowHomeScreen: React.FC = () => {
         <div className="relative flex items-center justify-between text-xs text-emerald-200 font-medium">
           <span className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            {routine.totalDurationSeconds / 60} Minutes · {routine.exercises.length} Exercises
+            {isSelectedDayLocked
+              ? `${fullRoutine.totalDurationSeconds / 60} Minutes · ${fullRoutine.exercises.length} Exercises`
+              : `${routine.totalDurationSeconds / 60} Minutes · ${routine.exercises.length} Exercises`}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-medium capitalize text-[10px]">
             {plan.level} Phase
           </span>
         </div>
         <div className="relative">
-          <h2 className="text-lg font-serif font-medium">{routine.title}</h2>
-          <p className="text-xs text-emerald-100/90 mt-1">{routine.description}</p>
+          <h2 className="text-lg font-serif font-medium">{fullRoutine.title}</h2>
+          <p className="text-xs text-emerald-100/90 mt-1">{fullRoutine.description}</p>
         </div>
 
-        <button
+        {isSelectedDayLocked ? (
+          <p className="relative p-3 rounded-2xl bg-black/20 border border-white/20 text-sm font-medium">
+            <LockKeyhole className="w-4 h-4 inline-block mr-2" />
+            Locked · finish Day {selectedDay > 1 ? selectedDay - 1 : selectedDay} first
+          </p>
+        ) : (
+          <button
           type="button"
           role="checkbox"
           aria-checked={tiredDay}
@@ -328,20 +387,25 @@ export const FlowHomeScreen: React.FC = () => {
             {tiredDay ? 'Short flow selected · 4 minutes' : 'On a tired day? Use the short flow'}
           </span>
           <span className="block mt-0.5 opacity-90">
-            First 3 exercises plus the final stretch/rest, as in the plan.
+            {isSelectedDayComplete
+              ? 'Repeat this day; saved progress will not be counted twice.'
+              : selectedDay === THIRTY_DAY_ROUTINE_PLANS.length
+                ? 'Short flow counts as a completed day.'
+                : 'First 3 exercises plus the final stretch/rest. Short flow counts and unlocks the next day.'}
           </span>
-        </button>
+          </button>
+        )}
 
-        <div className="relative p-2.5 rounded-2xl bg-black/20 border border-white/10 flex items-start gap-2 text-xs">
+        {!isSelectedDayLocked && <div className="relative p-2.5 rounded-2xl bg-black/20 border border-white/10 flex items-start gap-2 text-xs">
           <Wind className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
           <div className="flex-1">
             <span className="font-semibold text-emerald-200 block text-[11px]">Breathing cue</span>
             <span className="text-[11px] text-emerald-50 leading-relaxed">{activeExercise.breathingCue}</span>
           </div>
-        </div>
+        </div>}
       </section>
 
-      <section className="p-4 rounded-3xl bg-white dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 shadow-sm space-y-3">
+      {!isSelectedDayLocked && <section className="p-4 rounded-3xl bg-white dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 shadow-sm space-y-3">
         <div className="flex items-center justify-between text-xs font-medium">
           <span className="text-stone-500 dark:text-slate-400">
             Exercise {activeStepIndex + 1} of {routine.exercises.length}
@@ -421,7 +485,11 @@ export const FlowHomeScreen: React.FC = () => {
             onClick={() => (isPlaying ? setIsPlaying(false) : startOrResume())}
             className="flex-1 py-3 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isPlaying ? <><Pause className="w-4 h-4" /><span>Pause flow</span></> : <><Play className="w-4 h-4 fill-current" /><span>{routineFinished ? 'Restart flow' : secondsRemaining < 60 ? 'Resume flow' : `Start ${routine.totalDurationSeconds / 60}-minute flow`}</span></>}
+            {isPlaying
+              ? <><Pause className="w-4 h-4" /><span>Pause flow</span></>
+              : isSelectedDayComplete
+                ? <><RotateCcw className="w-4 h-4" /><span>Repeat this day</span></>
+                : <><Play className="w-4 h-4 fill-current" /><span>{routineFinished ? 'Restart flow' : secondsRemaining < 60 ? 'Resume flow' : `Start ${routine.totalDurationSeconds / 60}-minute flow`}</span></>}
           </button>
 
           <button
@@ -439,6 +507,12 @@ export const FlowHomeScreen: React.FC = () => {
           </button>
         </div>
 
+        {nextDay === selectedDay && nextDay < THIRTY_DAY_ROUTINE_PLANS.length && (
+          <p className="text-center text-[11px] text-stone-600 dark:text-slate-300">
+            Finish today to unlock Day {nextDay + 1}.
+          </p>
+        )}
+
         {routineFinished && (
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
             <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
@@ -453,17 +527,17 @@ export const FlowHomeScreen: React.FC = () => {
               {completionMessage ? 'Day progress saved' : `Save Day ${selectedDay} completion`}
             </button>
             {completionMessage && (
-              <p role="status" className="text-xs text-emerald-800 dark:text-emerald-200">
+              <p role="status" className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
                 {completionMessage}
               </p>
             )}
-            {nextDay && nextDay !== selectedDay && completionMessage && (
+            {justUnlockedDay !== null && completionMessage && (
               <button
                 type="button"
                 onClick={startNextDay}
                 className="w-full py-2 rounded-xl border border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs font-semibold"
               >
-                Continue to Day {nextDay}
+                Continue to Day {justUnlockedDay}
               </button>
             )}
           </div>
@@ -474,7 +548,11 @@ export const FlowHomeScreen: React.FC = () => {
             {progressError}
           </p>
         )}
-      </section>
+      </section>}
+
+      {nextDay !== null && nextDay > 1 && streakCount === 0 && (
+        <p className="text-xs text-stone-600 dark:text-slate-300">Pick up where you left off.</p>
+      )}
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
@@ -482,29 +560,38 @@ export const FlowHomeScreen: React.FC = () => {
             Day {selectedDay} sequence
           </h2>
           <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-            {isSelectedDayComplete ? 'Completed' : `${routine.exercises.length} moves · 1 minute each`}
+            {isSelectedDayLocked
+              ? 'Read-only preview · 10 moves'
+              : isSelectedDayComplete
+                ? 'Completed · repeat this day'
+                : `${routine.exercises.length} moves · 1 minute each`}
           </span>
         </div>
+        {isSelectedDayLocked && (
+          <p className="rounded-xl bg-stone-100 dark:bg-slate-800 px-3 py-2 text-xs text-stone-700 dark:text-slate-200">
+            {lockedDayMessage ?? `Finish Day ${selectedDay > 1 ? selectedDay - 1 : selectedDay} to unlock Day ${selectedDay}.`}
+          </p>
+        )}
         <div className="space-y-1.5">
-          {routine.exercises.map((item, index) => {
+          {(isSelectedDayLocked ? fullRoutine.exercises : routine.exercises).map((item, index) => {
             const isCurrent = index === activeStepIndex;
             return (
               <div
                 key={item.id}
-                onClick={() => {
+                onClick={isSelectedDayLocked ? undefined : () => {
                   if (isPlaying || routineFinished) return;
                   setActiveStepIndex(index);
                   setSecondsRemaining(item.durationSeconds);
                 }}
                 className={`w-full text-left p-2.5 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                  isCurrent
+                  !isSelectedDayLocked && isCurrent
                     ? 'border-emerald-600/60 bg-emerald-50/50 dark:bg-emerald-950/30 shadow-xs'
                     : 'border-stone-200/70 dark:border-slate-800 bg-white dark:bg-slate-800/40 hover:bg-stone-50 dark:hover:bg-slate-800/70'
-                } ${isPlaying || routineFinished ? 'cursor-default' : 'cursor-pointer'}`}
+                } ${isSelectedDayLocked || isPlaying || routineFinished ? 'cursor-default' : 'cursor-pointer'}`}
               >
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                    isCurrent ? 'bg-emerald-600 text-white' : 'bg-stone-100 dark:bg-slate-700 text-stone-500'
+                    !isSelectedDayLocked && isCurrent ? 'bg-emerald-600 text-white' : 'bg-stone-100 dark:bg-slate-700 text-stone-500'
                   }`}>
                     {index + 1}
                   </span>
@@ -514,7 +601,7 @@ export const FlowHomeScreen: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
+                  {!isSelectedDayLocked && <button
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -524,7 +611,7 @@ export const FlowHomeScreen: React.FC = () => {
                     aria-label={`View ${item.title} instructions`}
                   >
                     {item.videoUrl ? <Video className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
+                  </button>}
                   <span className="text-xs text-stone-400 font-mono font-medium">{item.durationSeconds}s</span>
                 </div>
               </div>

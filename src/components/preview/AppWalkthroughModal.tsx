@@ -26,19 +26,20 @@ export const AppWalkthroughModal: React.FC<AppWalkthroughModalProps> = ({ onDism
       features: [
         '30 distinct daily exercise sequences',
         'Beginner (Days 1–10), Intermediate (11–20), Advanced (21–30)',
-        'Choose a shorter option when you need one',
+        'Choose a shorter option when you need one; it counts toward completion and unlocks the next day when there is one',
       ],
       previewGraphic: 'levels',
     },
     {
       badge: 'Progressive Daily Plan',
       title: 'Build Up at Your Own Pace',
-      description: 'The program progresses through three phases. Complete each day to unlock the next; your next available day is highlighted.',
+      description: 'The program progresses through three phases. Complete each day to unlock the next, and repeat completed days whenever you like.',
       icon: <Activity className="w-8 h-8 text-teal-600 dark:text-teal-400" />,
       features: [
         'Days 1–10: Beginner',
         'Days 11–20: Intermediate',
         'Days 21–30: Advanced',
+        'Locked days can be previewed; complete the current day to unlock the next',
       ],
       previewGraphic: 'levels',
     },

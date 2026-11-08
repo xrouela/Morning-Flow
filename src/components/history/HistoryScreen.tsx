@@ -45,7 +45,7 @@ export const HistoryScreen: React.FC = () => {
   );
   const streak = progress ? getRoutineStreak(progress) : 0;
   const nextDay = progress ? getNextRoutineDay(progress) : 1;
-  const unlockedThrough = nextDay ?? THIRTY_DAY_ROUTINE_PLANS.length;
+  const programPosition = nextDay ?? THIRTY_DAY_ROUTINE_PLANS.length;
   const today = new Date();
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const daysSinceMonday = (monday.getDay() + 6) % 7;
@@ -84,10 +84,10 @@ export const HistoryScreen: React.FC = () => {
             <Flame className="w-5 h-5 fill-amber-500" />
             <span className="text-xs font-semibold text-stone-500 dark:text-slate-400">Current Streak</span>
           </div>
-          <p className="text-2xl font-serif font-semibold">{streak} Days</p>
+          <p className="text-2xl font-serif font-semibold">{streak}-day streak</p>
           <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
-            Based on completed program days
+            Based on calendar dates completed
           </span>
         </div>
 
@@ -98,7 +98,7 @@ export const HistoryScreen: React.FC = () => {
           </div>
           <p className="text-2xl font-serif font-semibold">{completions.length} / 30</p>
           <span className="text-[10px] text-stone-500 dark:text-slate-400 font-medium">
-            {totalMinutes} minutes completed
+            {totalMinutes} minutes completed · Day {programPosition} of 30
           </span>
         </div>
       </div>
@@ -138,32 +138,46 @@ export const HistoryScreen: React.FC = () => {
             30-Day Journey
           </h2>
           <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-            {nextDay ? `Next: Day ${nextDay}` : 'Complete'}
+            {nextDay ? `Day ${nextDay} of 30` : 'Day 30 of 30 · Complete'}
           </span>
         </div>
-        <div className="grid grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-5 gap-1.5">
           {THIRTY_DAY_ROUTINE_PLANS.map((plan) => (
             <div
               key={plan.day}
-              aria-label={`Day ${plan.day}, ${completedDays.has(plan.day) ? 'completed' : plan.day <= unlockedThrough ? plan.level : 'locked'}`}
-              className={`h-9 rounded-xl flex items-center justify-center text-[11px] font-semibold border ${
+              role="img"
+              aria-label={`Day ${plan.day}, ${
+                completedDays.has(plan.day)
+                  ? 'completed'
+                  : plan.day === nextDay
+                    ? 'Today'
+                    : `locked. Finish Day ${plan.day - 1} to unlock.`
+              }`}
+              className={`min-h-12 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold border ${
                 completedDays.has(plan.day)
                   ? 'bg-emerald-600 text-white border-emerald-600'
                   : plan.day === nextDay
-                    ? 'bg-white text-emerald-700 border-emerald-500 dark:bg-slate-900 dark:text-emerald-300 dark:border-emerald-700'
-                    : plan.day > unlockedThrough
-                      ? 'bg-stone-100 text-stone-400 border-stone-200 dark:bg-slate-950 dark:text-slate-600 dark:border-slate-800'
-                      : 'bg-stone-50 text-stone-500 border-stone-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-stone-100 text-stone-600 border-stone-300 dark:bg-slate-950 dark:text-slate-300 dark:border-slate-700'
               }`}
             >
-              {completedDays.has(plan.day)
-                ? <CheckCircle2 className="w-4 h-4" />
-                : plan.day > unlockedThrough
-                  ? <LockKeyhole className="w-3 h-3" />
-                  : plan.day}
+              <span className="flex items-center gap-0.5">
+                {completedDays.has(plan.day)
+                  ? <CheckCircle2 className="w-3.5 h-3.5" />
+                  : plan.day === nextDay
+                    ? <CalendarDays className="w-3.5 h-3.5" />
+                    : <LockKeyhole className="w-3 h-3" />}
+                <span>{plan.day}</span>
+              </span>
+              <span className={completedDays.has(plan.day) ? 'text-[8px]' : undefined}>
+                {completedDays.has(plan.day) ? 'Completed' : plan.day === nextDay ? 'Today' : 'Locked'}
+              </span>
             </div>
           ))}
         </div>
+        {nextDay !== null && nextDay > 1 && streak === 0 && (
+          <p className="text-xs text-stone-600 dark:text-slate-300">Pick up where you left off.</p>
+        )}
       </section>
 
       <section className="space-y-2">

@@ -1,15 +1,15 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
 
 export const SplashScreen: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-emerald-50 via-stone-50 to-amber-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-emerald-950/20 text-center select-none">
-      {/* Radiant Lymphatic Ripple / Dawn Ring */}
       <div className="relative mb-8 flex items-center justify-center">
-        <div className="w-28 h-28 rounded-full bg-emerald-200/40 dark:bg-emerald-500/10 animate-ping absolute" />
-        <div className="w-24 h-24 rounded-full bg-emerald-300/30 dark:bg-emerald-500/20 animate-pulse absolute" />
-        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-xl flex items-center justify-center text-white relative">
-          <Sparkles className="w-10 h-10 animate-spin" style={{ animationDuration: '8s' }} />
+        <div className="w-32 h-32 rounded-[32px] bg-white/80 shadow-[0_18px_40px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100 dark:ring-emerald-900/40 flex items-center justify-center p-3">
+          <img
+            src="/morning-flow-icon.png"
+            alt="Morning Flow logo"
+            className="h-full w-full object-contain"
+          />
         </div>
       </div>
 

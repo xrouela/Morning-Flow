@@ -203,6 +203,46 @@ test('each user must complete the current day before the next day unlocks', () =
   }
 });
 
+test('a locked day cannot start, saving completion unlocks the next day, and completed days can repeat', () => {
+  const values = new Map<string, string>();
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const user = 'unlock-flow-user';
+    const initialProgress = getRoutineProgress(user);
+    assert.equal(isRoutineDayUnlocked(initialProgress, 1), true);
+    assert.equal(isRoutineDayUnlocked(initialProgress, 2), false);
+    assert.throws(() => recordRoutineDayCompletion(user, 2, false), /Complete Day 1/);
+
+    const afterDayOne = recordRoutineDayCompletion(user, 1, false);
+    assert.equal(isRoutineDayUnlocked(afterDayOne, 2), true);
+    assert.equal(isRoutineDayUnlocked(afterDayOne, 3), false);
+
+    const afterShortDayTwo = recordRoutineDayCompletion(user, 2, true);
+    assert.equal(afterShortDayTwo.completions[1].durationSeconds, 240);
+    assert.equal(isRoutineDayUnlocked(afterShortDayTwo, 3), true);
+
+    const afterRepeatingDayOne = recordRoutineDayCompletion(user, 1, false);
+    assert.equal(afterRepeatingDayOne.completions.length, 2);
+    assert.equal(isRoutineDayUnlocked(afterRepeatingDayOne, 3), true);
+  } finally {
+    if (previousWindow) {
+      Object.defineProperty(globalThis, 'window', previousWindow);
+    } else {
+      Reflect.deleteProperty(globalThis, 'window');
+    }
+  }
+});
+
 test('legacy out-of-order saved days do not unlock future exercises', () => {
   const values = new Map<string, string>([[
     'morning_flow_30_day_progress_legacy-user',

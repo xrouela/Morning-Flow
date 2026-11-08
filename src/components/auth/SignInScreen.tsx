@@ -3,7 +3,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { signInSchema } from '../../schemas/authSchemas';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { 
-  Sparkles, 
   Mail, 
   Lock, 
   Eye, 
@@ -71,8 +70,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ onNavigateToSignUp }
       <div className="space-y-6">
         {/* Brand Header */}
         <div className="pt-2 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-700 to-teal-500 text-white shadow-lg shadow-emerald-700/20 mb-3">
-            <Sparkles className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-[26px] bg-white shadow-[0_12px_30px_rgba(5,150,105,0.18)] ring-1 ring-emerald-100 dark:ring-emerald-900/40 mb-3 overflow-hidden">
+            <img
+              src="/morning-flow-icon.png"
+              alt="Morning Flow logo"
+              className="h-full w-full object-contain p-2 sm:p-3"
+            />
           </div>
           <h1 className="text-2xl font-serif font-medium tracking-tight">Morning Flow</h1>
           <p className="text-xs text-stone-500 dark:text-slate-400 mt-1">
